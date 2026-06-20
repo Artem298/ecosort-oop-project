@@ -100,3 +100,49 @@ class WasteBin:
         lines = [f"  {idx}. {w.name} ({w.weight} kg)"
                   for idx, w in enumerate(self._contents, start=1)]
         return "\n".join(lines)
+    
+class RecyclingCenter:
+    """Recycling Center that processes the contents of waste bins."""
+
+    @staticmethod
+    def process_bin(waste_bin: WasteBin) -> str:
+        wastes = waste_bin.empty_bin()
+        if not wastes:
+            return "The bin is empty. Nothing to process."
+
+        lines = ["🚛 Garbage truck arrived. Sorting and processing the bin..."]
+        for waste in wastes:
+            lines.append(waste.process())
+        lines.append("✨ Waste processing completed successfully!")
+        return "\n".join(lines)
+
+
+WASTE_CATALOG: List[tuple] = [
+    # name, weight, material (None if not recyclable), type
+    ("Cola Bottle", 0.5, "Plastic", WasteType.RECYCLABLE),
+    ("TV Cardboard Box", 2.5, "Cardboard", WasteType.RECYCLABLE),
+    ("Old Newspaper", 0.3, "Paper", WasteType.RECYCLABLE),
+    ("Glass Jar", 0.4, "Glass", WasteType.RECYCLABLE),
+    ("Aluminum Can", 0.1, "Aluminum", WasteType.RECYCLABLE),
+    ("Apple Core", 0.1, None, WasteType.ORGANIC),
+    ("Banana Peel", 0.15, None, WasteType.ORGANIC),
+    ("Eggshells", 0.05, None, WasteType.ORGANIC),
+    ("Leftover Pizza", 0.4, None, WasteType.ORGANIC),
+    ("Used Tea Bag", 0.1, None, WasteType.ORGANIC),
+    ("AA Battery", 0.02, None, WasteType.HAZARDOUS),
+    ("Old Smartphone", 0.2, None, WasteType.HAZARDOUS),
+    ("Mercury Thermometer", 0.1, None, WasteType.HAZARDOUS),
+    ("CFL Light Bulb", 0.15, None, WasteType.HAZARDOUS),
+    ("Old Paint Can", 1.2, None, WasteType.HAZARDOUS),
+]
+
+
+def create_waste_from_catalog_entry(entry: tuple) -> Waste:
+    """Factory function: builds the correct Waste subclass from a catalog row."""
+    name, weight, material, waste_type = entry
+    if waste_type == WasteType.RECYCLABLE:
+        return RecyclableWaste(name, weight, material)
+    elif waste_type == WasteType.ORGANIC:
+        return OrganicWaste(name, weight)
+    else:
+        return HazardousWaste(name, weight)
