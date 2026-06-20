@@ -1,13 +1,31 @@
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import List, Optional
- 
- 
+
+
 # --- CUSTOM EXCEPTIONS ---
- 
+
 class BinOverflowError(Exception):
     """Raised when adding waste would exceed the bin's weight capacity."""
     pass
+
+
+# --- BASE CLASSES (Abstraction) ---
+
+class Waste(ABC):
+    """Abstract base class for all waste types."""
+
+    def __init__(self, name: str, weight: float):
+        self.name = name
+        self.weight = weight
+
+    @abstractmethod
+    def process(self) -> str:
+        """Processing method to be implemented by subclasses."""
+        pass
+
+
+# --- SUBCLASSES (Inheritance & Polymorphism) ---
 
 class RecyclableWaste(Waste):
     """Recyclable waste like plastic, glass, or paper."""
@@ -35,11 +53,17 @@ class HazardousWaste(Waste):
     def process(self) -> str:
         return (f"[⚠️ HAZARDOUS] {self.weight} kg of toxic waste "
                 f"({self.name}) sent to safe disposal.")
-    
+
+
+# --- ENUM (replaces magic strings "1"/"2"/"3") ---
+
 class WasteType(Enum):
     RECYCLABLE = "1"
     ORGANIC = "2"
     HAZARDOUS = "3"
+
+
+# --- MANAGEMENT CLASSES (Encapsulation) ---
 
 class WasteBin:
     """Waste bin with weight capacity constraints.
@@ -100,7 +124,8 @@ class WasteBin:
         lines = [f"  {idx}. {w.name} ({w.weight} kg)"
                   for idx, w in enumerate(self._contents, start=1)]
         return "\n".join(lines)
-    
+
+
 class RecyclingCenter:
     """Recycling Center that processes the contents of waste bins."""
 
@@ -116,6 +141,8 @@ class RecyclingCenter:
         lines.append("✨ Waste processing completed successfully!")
         return "\n".join(lines)
 
+
+# --- WASTE CATALOG (single source of truth, no duplicated magic strings) ---
 
 WASTE_CATALOG: List[tuple] = [
     # name, weight, material (None if not recyclable), type
@@ -146,3 +173,90 @@ def create_waste_from_catalog_entry(entry: tuple) -> Waste:
         return OrganicWaste(name, weight)
     else:
         return HazardousWaste(name, weight)
+
+
+# --- INTERACTIVE APPLICATION (menu logic kept out of free-floating script code) ---
+
+class EcoSortApp:
+    """Encapsulates the interactive console menu and ties it to the domain classes."""
+
+    def __init__(self):
+        self._bin: Optional[WasteBin] = None
+
+    def run(self) -> None:
+        print("🗑️ Welcome to EcoSort: Interactive Waste Management System!")
+        self._bin = WasteBin(capacity=self._prompt_for_capacity())
+
+        actions = {
+            "1": self._handle_add_item,
+            "2": self._handle_view_status,
+            "3": self._handle_process_bin,
+        }
+
+        while True:
+            self._show_menu()
+            choice = input("Select an option (1-4): ").strip()
+
+            if choice == "4":
+                print("👋 Thank you for using EcoSort. Keep the planet clean!")
+                break
+
+            action = actions.get(choice)
+            if action is None:
+                print("❌ Invalid option. Please try again.")
+                continue
+            action()
+
+    @staticmethod
+    def _prompt_for_capacity() -> float:
+        try:
+            return float(input("Enter waste bin capacity limit (in kg, e.g., 15): "))
+        except ValueError:
+            print("Invalid input. Default capacity set to 15.0 kg.")
+            return 15.0
+
+    @staticmethod
+    def _show_menu() -> None:
+        print("\n=== MAIN MENU ===")
+        print("1. Add an item from the Catalog (15 items)")
+        print("2. View current bin status")
+        print("3. Send bin to the Recycling Center")
+        print("4. Exit EcoSort")
+
+    def _handle_add_item(self) -> None:
+        print("\n--- AVAILABLE ITEMS CATALOG ---")
+        for idx, (name, weight, material, _) in enumerate(WASTE_CATALOG, start=1):
+            mat_info = f" [{material}]" if material else ""
+            print(f"{idx}. {name} ({weight} kg){mat_info}")
+
+        try:
+            item_idx = int(input("\nSelect item number (1-15): ")) - 1
+        except ValueError:
+            print("❌ Error: Please enter a valid number!")
+            return
+
+        if not (0 <= item_idx < len(WASTE_CATALOG)):
+            print("❌ Error: Invalid item number!")
+            return
+
+        waste_item = create_waste_from_catalog_entry(WASTE_CATALOG[item_idx])
+        try:
+            self._bin.add_waste(waste_item)
+        except BinOverflowError as e:
+            print(f"❌ Error: {e}")
+        else:
+            print(f"✅ Added: {waste_item.name} ({waste_item.weight} kg). "
+                  f"Free space: {self._bin.free_space:.2f} kg.")
+
+    def _handle_view_status(self) -> None:
+        print(f"\n📊 Bin Load: {self._bin.current_weight:.2f} / {self._bin.capacity:.2f} kg.")
+        print(f"Total items inside: {self._bin.item_count}")
+        print(self._bin.describe_contents())
+
+    def _handle_process_bin(self) -> None:
+        print()
+        print(RecyclingCenter.process_bin(self._bin))
+
+
+if __name__ == "__main__":
+    EcoSortApp().run()
